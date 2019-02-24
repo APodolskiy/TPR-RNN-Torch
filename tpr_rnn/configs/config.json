@@ -1,0 +1,7 @@
+{
+  "entity_size": 90,
+  "hidden_size": 40,
+  "role_size": 20,
+  "init_limit": 0.10,
+  "LN": true
+}
