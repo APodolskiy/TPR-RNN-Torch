@@ -34,6 +34,7 @@ class UpdateModule(nn.Module):
         super(UpdateModule, self).__init__()
         self.embed_layer = embed_layer
         self.embed_pos = embed_pos
+        self.role_size = role_size
 
         _, symbol_size = self.embed_layer.weight.size()
 
@@ -46,6 +47,8 @@ class UpdateModule(nn.Module):
         sentence_embed = self.embed_layer(story)  # [b, s, w, e]
         query_embed = self.embed_layer(query)  # [b, w, e]
 
+        batch_size, _, _, ent_size = sentence_embed.sum()
+
         sentence_sum = torch.einsum('bswe,we->bse', [sentence_embed, self.embed_pos])
         query_sum = torch.einsum('bwe,we->be', [query_embed, self.embed_pos])
 
@@ -55,7 +58,18 @@ class UpdateModule(nn.Module):
         partial_add_B = torch.einsum('bsr,bsf->bsrf', [r3, e1])
 
         inputs = (e1, r1, partial_add_W, e2, r2, partial_add_B, r3)
-        pass
+
+        # TPR-RNN steps
+        TPR = torch.zeros(batch_size, ent_size, self.role_size, ent_size).to(story.device)
+        for x in zip([torch.unbind(t, dim=1) for t in inputs]):
+            e1_i, r1_i, partial_add_W_i, e2_i, r2_i, partial_add_B_i, r3_i = x
+            w_hat = torch.einsum('be,br,berf->bf', [e1_i, r1_i, TPR])
+            partial_remove_W = torch.einsum('br,bf->brf', [r1, w_hat])
+
+            m_hat = torch.einsum('be,br,berf->bf', [e1_i, r2_i, TPR])
+            partial_remove_M = torch.einsum('br,bf->brf', [r2_i, m_hat])
+
+
 
 
 class InferenceModule(nn.Module):
