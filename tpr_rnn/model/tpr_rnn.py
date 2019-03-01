@@ -2,6 +2,7 @@ from typing import Dict, Any
 
 import torch
 import torch.nn as nn
+from torch.utils.data import TensorDataset, DataLoader
 
 from tpr_rnn.model.utils import MLP, LayerNorm, OptionalLayer
 
@@ -29,8 +30,10 @@ class TprRnn(nn.Module):
                                                 Z=self.Z,
                                                 config=config)
 
-    def forward(self, x: torch.Tensor):
-        pass
+    def forward(self, story: torch.Tensor, query: torch.Tensor):
+        TPR = self.update_module(story)
+        logits = self.inference_module(query, TPR)
+        return logits
 
 
 class UpdateModule(nn.Module):
@@ -52,8 +55,8 @@ class UpdateModule(nn.Module):
 
     def forward(self, story: torch.Tensor) -> torch.Tensor:
         sentence_embed = self.embed_layer(story)  # [b, s, w, e]
-
-        batch_size, _, _, ent_size = sentence_embed.sum()
+        # TODO: check the validness of embeddings
+        batch_size = sentence_embed.size(0)
 
         sentence_sum = torch.einsum('bswe,we->bse', sentence_embed, self.embed_pos)
 
@@ -65,11 +68,11 @@ class UpdateModule(nn.Module):
         inputs = (e1, r1, partial_add_W, e2, r2, partial_add_B, r3)
 
         # TPR-RNN steps
-        TPR = torch.zeros(batch_size, ent_size, self.role_size, ent_size).to(story.device)
-        for x in zip([torch.unbind(t, dim=1) for t in inputs]):
+        TPR = torch.zeros(batch_size, self.ent_size, self.role_size, self.ent_size).to(story.device)
+        for x in zip(*[torch.unbind(t, dim=1) for t in inputs]):
             e1_i, r1_i, partial_add_W_i, e2_i, r2_i, partial_add_B_i, r3_i = x
             w_hat = torch.einsum('be,br,berf->bf', e1_i, r1_i, TPR)
-            partial_remove_W = torch.einsum('br,bf->brf', r1, w_hat)
+            partial_remove_W = torch.einsum('br,bf->brf', r1_i, w_hat)
 
             m_hat = torch.einsum('be,br,berf->bf', e1_i, r2_i, TPR)
             partial_remove_M = torch.einsum('br,bf->brf', r2_i, m_hat)
@@ -84,13 +87,11 @@ class UpdateModule(nn.Module):
             backlink_op = partial_add_B_i - partial_remove_B
             delta_F = torch.einsum('be,brf->berf', e1_i, write_op + move_op) + \
                       torch.einsum('be,brf->berf', e2_i, backlink_op)
-
-            TPR += delta_F
+            TPR = TPR + delta_F
         return TPR
 
 
 class InferenceModule(nn.Module):
-<<<<<<< HEAD
     def __init__(self, embed_layer: nn.Embedding, embed_pos: nn.Parameter, Z: nn.Parameter,
                  config: Dict[str, Any]):
         super(InferenceModule, self).__init__()
