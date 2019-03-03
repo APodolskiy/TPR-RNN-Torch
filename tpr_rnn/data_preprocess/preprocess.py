@@ -46,7 +46,10 @@ def parse(data_path, task_id, word2id=None, bsz=32, DATA_TYPES=['train', 'valid'
     else:
         for i, data_type in enumerate(DATA_TYPES):
             print("vectorize {} ...".format(data_type))
-            cache_path = data_path + "-pik/" + FORMAT_STR.format(task_id) + data_type + ".pik"
+            cache_dir = data_path + "-pik/"
+            if not os.path.exists(cache_dir):
+                os.mkdir(cache_dir)
+            cache_path = cache_dir + FORMAT_STR.format(task_id) + data_type + ".pik"
             S, S_len, Q, A = vectorize_stories(story_data[i], global_sentence_max, global_story_max, word2id, task_id)
             n = int((S.shape[0] / bsz) * bsz)
             with open(cache_path, 'wb') as f:
