@@ -9,7 +9,6 @@ from tpr_rnn.model.utils import MLP, LayerNorm, OptionalLayer
 class TprRnn(nn.Module):
     def __init__(self, config: Dict[str, Any]):
         super(TprRnn, self).__init__()
-        # TODO: shoould contain only Input, Update, Inference modules
         self.input_module = InputModule(config)
         self.update_module = UpdateModule(config=config)
         self.inference_module = InferenceModule(config=config)
@@ -35,8 +34,6 @@ class InputModule(nn.Module):
     def forward(self, story: torch.Tensor, query: torch.Tensor):
         # Sentence embedding
         sentence_embed = self.word_embed(story)  # [b, s, w, e]
-        # TODO: check the validness of embeddings
-        # TODO: check that embeddings are learned through training
         sentence_sum = torch.einsum('bswe,we->bse', sentence_embed, self.pos_embed)
         # Query embedding
         query_embed = self.word_embed(query)  # [b, w, e]

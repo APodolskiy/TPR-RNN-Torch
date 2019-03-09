@@ -13,7 +13,7 @@ from torch.utils.data import TensorDataset, DataLoader
 
 from tpr_rnn.data_preprocess.preprocess import parse
 from tpr_rnn.model.tpr_rnn import TprRnn
-
+from tpr_rnn.model.utils import WarmupScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +60,16 @@ def train(config: Dict, serialization_path: Optional[str] = None, eval_test: boo
                            lr=optimizer_config["lr"], betas=(optimizer_config["beta1"], optimizer_config["beta2"]))
 
     loss_fn = nn.CrossEntropyLoss()
+    warm_up = optimizer_config.get("warm_up", False)
+    if warm_up:
+        scheduler = WarmupScheduler(optimizer=optimizer,
+                                    steps=optimizer_config["warm_up_steps"],
+                                    multiplier=optimizer_config["warm_up_factor"])
 
-    # TODO: add tqdm support
     for i in range(trainer_config["epochs"]):
         logging.info(f"##### EPOCH: {i} #####")
+        if warm_up:
+            scheduler.step()
         model.train()
         correct = 0
         for story, story_length, query, answer in tqdm(train_data_loader):

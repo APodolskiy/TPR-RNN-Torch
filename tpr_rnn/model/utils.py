@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.optim as optim
+from torch.optim.lr_scheduler import _LRScheduler
 
 
 class MLP(nn.Module):
@@ -24,7 +25,7 @@ class MLP(nn.Module):
 
 
 class OptionalLayer(nn.Module):
-    def __init__(self, layer: nn.Module, active: bool=False):
+    def __init__(self, layer: nn.Module, active: bool = False):
         super(OptionalLayer, self).__init__()
         self.layer = layer
         self.active = active
@@ -36,7 +37,7 @@ class OptionalLayer(nn.Module):
 
 
 class LayerNorm(nn.Module):
-    def __init__(self, hidden_size, eps=1e-12):
+    def __init__(self, hidden_size: int, eps: float = 1e-12):
         super(LayerNorm, self).__init__()
         self.hidden_size = hidden_size
         self.eps = eps
@@ -48,3 +49,15 @@ class LayerNorm(nn.Module):
         sigma = (x - mu).pow(2).mean(-1, keepdim=True)
         normalized = (x - mu) / (torch.sqrt(sigma + self.eps))
         return normalized * self.gain + self.bias
+
+
+class WarmupScheduler(_LRScheduler):
+    def __init__(self, optimizer: optim.Optimizer, multiplier: float, steps: int):
+        self.multiplier = multiplier
+        self.steps = steps
+        super(WarmupScheduler, self).__init__(optimizer=optimizer)
+
+    def get_lr(self):
+        if self.last_epoch < self.steps:
+            return [base_lr * self.multiplier for base_lr in self.base_lrs]
+        return self.base_lrs
