@@ -61,3 +61,6 @@ class WarmupScheduler(_LRScheduler):
         if self.last_epoch < self.steps:
             return [base_lr * self.multiplier for base_lr in self.base_lrs]
         return self.base_lrs
+
+    def decay_lr(self, decay_factor: float):
+        self.base_lrs = [decay_factor * base_lr for base_lr in self.base_lrs]

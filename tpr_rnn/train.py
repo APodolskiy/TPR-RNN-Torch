@@ -59,19 +59,21 @@ def train(config: Dict, serialization_path: Optional[str] = None, eval_test: boo
     optimizer = optim.Adam(model.parameters(),
                            lr=optimizer_config["lr"], betas=(optimizer_config["beta1"], optimizer_config["beta2"]))
 
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.CrossEntropyLoss(reduction='sum')
     warm_up = optimizer_config.get("warm_up", False)
     if warm_up:
         scheduler = WarmupScheduler(optimizer=optimizer,
                                     steps=optimizer_config["warm_up_steps"],
                                     multiplier=optimizer_config["warm_up_factor"])
 
+    decay_done = False
     for i in range(trainer_config["epochs"]):
         logging.info(f"##### EPOCH: {i} #####")
         if warm_up:
             scheduler.step()
         model.train()
         correct = 0
+        train_loss = 0
         for story, story_length, query, answer in tqdm(train_data_loader):
             optimizer.zero_grad()
             logits = model(story.to(device), query.to(device))
@@ -80,12 +82,16 @@ def train(config: Dict, serialization_path: Optional[str] = None, eval_test: boo
             correct += correct_batch.item()
 
             loss = loss_fn(logits, answer)
+            train_loss += loss.item()
+            loss = loss.mean()
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), optimizer_config["max_gradient_norm"])
             optimizer.step()
         train_acc = correct / train_epoch_size
+        train_loss = train_loss / train_epoch_size
         model.eval()
         correct = 0
+        valid_loss = 0
         with torch.no_grad():
             for story, story_length, query, answer in tqdm(valid_data_loader):
                 logits = model(story.to(device), query.to(device))
@@ -93,13 +99,18 @@ def train(config: Dict, serialization_path: Optional[str] = None, eval_test: boo
                 correct_batch = (torch.argmax(logits, dim=-1) == answer).sum()
                 correct += correct_batch.item()
                 loss = loss_fn(logits, answer)
+                valid_loss += loss.item()
             valid_acc = correct / valid_epoch_size
-        logging.info(f"Train accuracy: {train_acc}\n"
-                     f"Valid accuracy: {valid_acc}")
-
+            valid_loss = valid_loss / valid_epoch_size
+        logging.info(f"\nTrain accuracy: {train_acc:.3f}, loss: {valid_loss:.3f}"
+                     f"\nValid accuracy: {valid_acc:.3f}, loss: {train_loss:.3f}")
+        if optimizer_config.get("decay", False) and valid_loss < optimizer_config["decay_thr"] and not decay_done:
+            scheduler.decay_lr(optimizer_config["decay_factor"])
+            decay_done = True
     if eval_test:
         model.eval()
         correct = 0
+        test_loss = 0
         with torch.no_grad():
             for story, story_length, query, answer in tqdm(test_data_loader):
                 logits = model(story.to(device), query.to(device))
@@ -107,8 +118,10 @@ def train(config: Dict, serialization_path: Optional[str] = None, eval_test: boo
                 correct_batch = (torch.argmax(logits, dim=-1) == answer).sum()
                 correct += correct_batch.item()
                 loss = loss_fn(logits, answer)
+                test_loss += loss.item()
             test_acc = correct / test_epoch_size
-        logging.info(f"Test accuracy: {test_acc}")
+            test_loss = test_loss / test_epoch_size
+        logging.info(f"Test accuracy: {test_acc:.3f}, loss: {test_loss:.3f}")
 
 
 if __name__ == "__main__":
