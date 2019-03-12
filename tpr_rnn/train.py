@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 import logging
 import json
+from pathlib import Path
 from tqdm import tqdm
 from typing import Dict, Optional
 
@@ -18,7 +19,10 @@ from tpr_rnn.model.utils import WarmupScheduler
 logger = logging.getLogger(__name__)
 
 
-def train(config: Dict, serialization_path: Optional[str] = None, eval_test: bool = False) -> None:
+def train(config: Dict,
+          serialization_path: Optional[str] = None,
+          eval_test: bool = False,
+          force: bool = True) -> None:
     data_config = config["data"]
     trainer_config = config["trainer"]
     model_config = config["model"]
@@ -59,18 +63,18 @@ def train(config: Dict, serialization_path: Optional[str] = None, eval_test: boo
     optimizer = optim.Adam(model.parameters(),
                            lr=optimizer_config["lr"], betas=(optimizer_config["beta1"], optimizer_config["beta2"]))
 
-    loss_fn = nn.CrossEntropyLoss(reduction='sum')
+    loss_fn = nn.CrossEntropyLoss(reduction='none')
     warm_up = optimizer_config.get("warm_up", False)
-    if warm_up:
-        scheduler = WarmupScheduler(optimizer=optimizer,
-                                    steps=optimizer_config["warm_up_steps"],
-                                    multiplier=optimizer_config["warm_up_factor"])
+
+    scheduler = WarmupScheduler(optimizer=optimizer,
+                                steps=optimizer_config["warm_up_steps"] if warm_up else 0,
+                                multiplier=optimizer_config["warm_up_factor"] if warm_up else 1)
 
     decay_done = False
     for i in range(trainer_config["epochs"]):
         logging.info(f"##### EPOCH: {i} #####")
-        if warm_up:
-            scheduler.step()
+        scheduler.step()
+
         model.train()
         correct = 0
         train_loss = 0
@@ -82,7 +86,7 @@ def train(config: Dict, serialization_path: Optional[str] = None, eval_test: boo
             correct += correct_batch.item()
 
             loss = loss_fn(logits, answer)
-            train_loss += loss.item()
+            train_loss += loss.sum().item()
             loss = loss.mean()
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), optimizer_config["max_gradient_norm"])
@@ -99,7 +103,7 @@ def train(config: Dict, serialization_path: Optional[str] = None, eval_test: boo
                 correct_batch = (torch.argmax(logits, dim=-1) == answer).sum()
                 correct += correct_batch.item()
                 loss = loss_fn(logits, answer)
-                valid_loss += loss.item()
+                valid_loss += loss.sum().item()
             valid_acc = correct / valid_epoch_size
             valid_loss = valid_loss / valid_epoch_size
         logging.info(f"\nTrain accuracy: {train_acc:.3f}, loss: {valid_loss:.3f}"
@@ -118,10 +122,19 @@ def train(config: Dict, serialization_path: Optional[str] = None, eval_test: boo
                 correct_batch = (torch.argmax(logits, dim=-1) == answer).sum()
                 correct += correct_batch.item()
                 loss = loss_fn(logits, answer)
-                test_loss += loss.item()
+                test_loss += loss.sum().item()
             test_acc = correct / test_epoch_size
             test_loss = test_loss / test_epoch_size
         logging.info(f"Test accuracy: {test_acc:.3f}, loss: {test_loss:.3f}")
+
+    if serialization_path is not None:
+        dir_path = Path(serialization_path)
+        dir_path.mkdir(parents=True, exist_ok=force)
+        model_path = dir_path / "model.pt"
+        config_path = dir_path / "config.json"
+        torch.save(model.state_dict(), model_path.absolute())
+        with config_path.open("w") as fp:
+            json.dump(config, fp)
 
 
 if __name__ == "__main__":
