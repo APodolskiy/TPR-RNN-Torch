@@ -122,8 +122,8 @@ def train(config: Dict[str, Dict],
         writer.add_scalars("loss", {"train": train_loss,
                                     "validation": valid_loss}, i)
 
-        logging.info(f"\nTrain accuracy: {train_acc:.3f}, loss: {valid_loss:.3f}"
-                     f"\nValid accuracy: {valid_acc:.3f}, loss: {train_loss:.3f}")
+        logging.info(f"\nTrain accuracy: {train_acc:.3f}, loss: {train_loss:.3f}"
+                     f"\nValid accuracy: {valid_acc:.3f}, loss: {valid_loss:.3f}")
         if optimizer_config.get("decay", False) and valid_loss < optimizer_config["decay_thr"] and not decay_done:
             scheduler.decay_lr(optimizer_config["decay_factor"])
             decay_done = True
