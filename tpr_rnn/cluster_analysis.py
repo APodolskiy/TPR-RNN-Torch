@@ -16,7 +16,7 @@ from tpr_rnn.data_preprocess.preprocess import parse
 from tpr_rnn.model.tpr_rnn import TprRnn
 
 
-def cluster_analysis(dir_path: str):
+def cluster_analysis(dir_path: str, stories_num: int = 5):
     dir_path = Path(dir_path)
     # load config
     config_path = dir_path / "config.json"
@@ -33,11 +33,11 @@ def cluster_analysis(dir_path: str):
     _, _, test_raw_data, word2id = parse(data_config["data_path"], data_config["task-id"])
     id2word = {word2id[k]: k for k in word2id}
 
-    plot_small_random_sample(model, test_raw_data, id2word, dir_path, elem='e1', stories_num=5)
-    plot_small_random_sample(model, test_raw_data, id2word, dir_path, elem='e2', stories_num=5)
-    plot_small_random_sample(model, test_raw_data, id2word, dir_path, elem='r1', stories_num=5)
-    plot_small_random_sample(model, test_raw_data, id2word, dir_path, elem='r2', stories_num=5)
-    plot_small_random_sample(model, test_raw_data, id2word, dir_path, elem='r3', stories_num=5)
+    plot_small_random_sample(model, test_raw_data, id2word, dir_path, elem='e1', stories_num=stories_num)
+    plot_small_random_sample(model, test_raw_data, id2word, dir_path, elem='e2', stories_num=stories_num)
+    plot_small_random_sample(model, test_raw_data, id2word, dir_path, elem='r1', stories_num=stories_num)
+    plot_small_random_sample(model, test_raw_data, id2word, dir_path, elem='r2', stories_num=stories_num)
+    plot_small_random_sample(model, test_raw_data, id2word, dir_path, elem='r3', stories_num=stories_num)
 
 
 def cluster(model: torch.nn.Module, test_raw_data: List,
@@ -57,7 +57,6 @@ def cluster(model: torch.nn.Module, test_raw_data: List,
         story = story.numpy()
         sentences = np.reshape(story, (-1, story.shape[-1]))
         _, indecies = np.unique(sentences, axis=0, return_index=True)
-        #print("{} unique sentences found in {} random stories.".format(len(indecies), number_of_stories))
         sentences = sentences[indecies]
         r = res[indecies]
         C = cosine_similarity(r)
@@ -89,6 +88,8 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="Cluster analysis of pre-trained model")
     parser.add_argument("--model-path", type=str, required=True, metavar='PATH',
                         help="Path to pre-trained model directory.")
+    parser.add_argument("--num-stories", type=int, required=False, metavar='N',
+                        default=5, help="Number of stories to cluster on (default: 5)")
     args = parser.parse_args()
 
-    cluster_analysis(args.model_path)
+    cluster_analysis(args.model_path, args.num_stories)

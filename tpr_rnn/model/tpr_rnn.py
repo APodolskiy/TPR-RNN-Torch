@@ -6,6 +6,9 @@ import torch.nn as nn
 from tpr_rnn.model.utils import MLP, LayerNorm, OptionalLayer
 
 
+AVAILABLE_ELEMENTS = ('e1', 'e2', 'r1', 'r2', 'r3')
+
+
 class TprRnn(nn.Module):
     def __init__(self, config: Dict[str, Any]):
         super(TprRnn, self).__init__()
@@ -18,6 +21,20 @@ class TprRnn(nn.Module):
         TPR = self.update_module(story_embed)
         logits = self.inference_module(query_embed, TPR)
         return logits
+
+    def get_elem(self, story: torch.Tensor, query: torch.Tensor, elem: str) -> torch.Tensor:
+        """
+        Method for cluster analysis purposes
+        :param story: `torch.Tensor`
+        :param query: `torch.Tensor`
+        :param elem: string that specifies which element to acquire
+        :return: `torch.Tensor`
+        """
+        if elem not in AVAILABLE_ELEMENTS:
+            raise ValueError(f"Wrong element to acquire: {elem}. Choose one from:\n{AVAILABLE_ELEMENTS}")
+        story_embed, _ = self.input_module(story, query)
+        acquired_element = self.update_module.get_elem(story_embed, elem)
+        return acquired_element
 
 
 class InputModule(nn.Module):
@@ -86,6 +103,13 @@ class UpdateModule(nn.Module):
                       torch.einsum('be,brf->berf', e2_i, backlink_op)
             TPR = TPR + delta_F
         return TPR
+
+    def get_elem(self, sentence_embed: torch.Tensor, elem: str) -> torch.Tensor:
+        char = elem[0]
+        num = int(elem[1])
+        if char == 'e':
+            return self.e[num - 1](sentence_embed)
+        return self.r[num - 1](sentence_embed)
 
 
 class InferenceModule(nn.Module):
