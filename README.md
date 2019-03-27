@@ -39,7 +39,17 @@ Cluster analysis
 python3 cluster_analysis.py --model-path PATH [--num-stories N]
 ```
 
+## Cluster Analysis
+Results of cluster analysis on random stories related to task 3.
+
+<img src="./imgs/small_plot_e1.png" alt="e1" width="200"/>
+<img src="./imgs/small_plot_e2.png" alt="e2" width="200"/>
+
+<img src="./imgs/small_plot_r1.png" alt="r1" width="200"/>
+<img src="./imgs/small_plot_r2.png" alt="r2" width="200"/>
+<img src="./imgs/small_plot_r3.png" alt="r3" width="200"/>
+
 # TODO
-- [x] Pre-train on all tasks
+- [ ] Pre-train on all tasks
 - [x] Cluster analysis
 - [ ] Task transformation
