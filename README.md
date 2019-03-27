@@ -34,7 +34,12 @@ python3 train.py --config-file PATH --serialization-path PATH
 [--eval-test] [--logging-level LEVEL]
 ```
 
+Cluster analysis
+```bash
+python3 cluster_analysis.py --model-path PATH [--num-stories N]
+```
+
 # TODO
-- [ ] Pre-train on all tasks
-- [ ] Cluster analysis
+- [x] Pre-train on all tasks
+- [x] Cluster analysis
 - [ ] Task transformation
