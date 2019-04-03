@@ -49,7 +49,5 @@ Results of cluster analysis on random stories related to task 3.
 <img src="./imgs/small_plot_r2.png" alt="r2" width="200"/>
 <img src="./imgs/small_plot_r3.png" alt="r3" width="200"/>
 
-# TODO
-- [ ] Pre-train on all tasks
-- [x] Cluster analysis
-- [ ] Task transformation
+## Pre-trained models
+Pre-trained models are store at [google drive](https://drive.google.com/drive/folders/1mMTUlCHhHnxPwD36_Al4sq6KiESI4taN?usp=sharing).
