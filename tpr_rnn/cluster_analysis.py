@@ -3,14 +3,11 @@ import json
 from pathlib import Path
 from typing import List, Tuple, Dict
 
-import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from seaborn.matrix import ClusterGrid
 from sklearn.metrics.pairwise import cosine_similarity
-
 import torch
-from torch.utils.data import DataLoader, TensorDataset
 
 from tpr_rnn.data_preprocess.preprocess import parse
 from tpr_rnn.model.tpr_rnn import TprRnn
