@@ -53,7 +53,7 @@ Results of cluster analysis on random stories related to task 3.
 For each task model was trained, here are test data evaluation
 results. Robust hyper-parameter search wasn't done and Adam is being
 used instead of NAdam from original implementation but results 
-are quite similar to results obtained in the original paper.
+are comparable to results obtained in the original paper.
 
 |  Task |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  10 |  11 |  12 |  13 |  14 |  15 |  16 |  17 |  18 |  19 |  20 |
 |:-----:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
