@@ -1,20 +1,25 @@
 import torch
-from torch.optim.optimizer import Optimizer, required
+from torch.optim.optimizer import Optimizer
 
 
 class NAdam(Optimizer):
+    """
+    NAdam optimizer implementation based on the Keras code.
+    """
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999),
-                 eps=1e-8, weight_decay=0, momentum_decay=5e-3):
+                 eps=1e-8, weight_decay=0, momentum_decay=4e-3):
         if lr < 0.0:
             raise ValueError(f"Invalid learning rate: {lr}")
         if eps < 0.0:
             raise ValueError(f"Invalid eps: {eps}")
-        if not 0.0 <= betas[0] <= 1.0:
+        if not 0.0 <= betas[0] < 1.0:
             raise ValueError(f"Invalid beta parameter with index 0: {betas[0]}")
-        if not 0.0 <= betas[1] <= 1.0:
+        if not 0.0 <= betas[1] < 1.0:
             raise ValueError(f"Invalid beta parameter with index 1: {betas[1]}")
         if weight_decay < 0.0:
             raise ValueError(f"Invalid weight decay parameter: {weight_decay}")
+        if not 0.0 < momentum_decay < 1.0:
+            raise ValueError(f"Invalid momentum decay parameter: {momentum_decay}")
 
         defaults = dict(lr=lr, betas=betas, eps=eps,
                         weight_decay=weight_decay, momentum_decay=momentum_decay)
@@ -55,18 +60,21 @@ class NAdam(Optimizer):
                 momentum_decay_current = momentum_corr * momentum_decay
 
                 momentum_corr_next = beta1 * (1. - 0.5*(0.96**(state['step'] + 1) * momentum_decay))
-                momentum_decay_next = momentum_corr_next * momentum_decay
+                momentum_decay_next = momentum_corr_next * momentum_corr * momentum_decay
                 state['momentum_decay'] = momentum_decay_next
 
-                exp_grad.mul_(beta1).mul_(1 - beta1, grad)
-                exp_grad_sq.mul_(beta1).addcmul_(1 - beta2, grad, grad)
-                exp_grad_sq.div(1. - (1. - beta2 ** state['step']))
-                denom = exp_grad_sq.sqrt_().add_(group['eps'])
+                exp_grad.mul_(beta1).add_(1 - beta1, grad)
+                exp_grad_sq.mul_(beta2).addcmul_(1 - beta2, grad, grad)
+
+                exp_grad_prime = exp_grad.div(1. - momentum_decay_current)
+                exp_grad_sq_prime = exp_grad_sq.div(1. - beta2 ** state['step'])
+
+                denom = exp_grad_sq_prime.sqrt_().add_(group['eps'])
 
                 step_size_1 = group['lr']*(1. - momentum_corr) / (1. - momentum_decay_current)
-                step_size_2 = group['lr']*momentum_corr_next / (1. - momentum_decay_next)
+                step_size_2 = group['lr']*momentum_corr_next
 
                 p.data.addcdiv_(-step_size_1, grad, denom)
-                p.data.addcdiv_(-step_size_2, exp_grad, denom)
+                p.data.addcdiv_(-step_size_2, exp_grad_prime, denom)
 
         return loss
